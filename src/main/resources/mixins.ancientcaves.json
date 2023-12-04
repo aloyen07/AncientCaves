@@ -1,0 +1,11 @@
+{
+  "minVersion": "0.7.11",
+  "compatibilityLevel": "JAVA_8",
+  "package": "ru.aloyenz.ancientcaves.mixin",
+  "refmap": "mixins.ancientcaves.refmap.json",
+  "mixins": [
+    "AncientCavesWorldTypeMixin"
+  ],
+  "client": [],
+  "server": []
+}
