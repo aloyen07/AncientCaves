@@ -19,6 +19,7 @@ public class DefaultDimensionSetter {
     public void createDimension(CallbackInfoReturnable<WorldProvider> cir) {
         if (id == DimensionType.OVERWORLD.getId()) {
             cir.setReturnValue(new AncientCavesWorldProvider());
+
         }
     }
 }
