@@ -1,20 +1,25 @@
 package ru.aloyenz.ancientcaves.world;
 
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.client.Minecraft;
 import net.minecraft.entity.EnumCreatureType;
 import net.minecraft.init.Blocks;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.ChunkPrimer;
 import net.minecraft.world.gen.IChunkGenerator;
+import net.minecraftforge.common.DimensionManager;
 import org.apache.logging.log4j.Logger;
 import ru.aloyenz.ancientcaves.AncientCaves;
 import ru.aloyenz.ancientcaves.noise.PerlinNoiseGenerator;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 
 public class AncientCavesGenerator implements IChunkGenerator {
@@ -29,6 +34,8 @@ public class AncientCavesGenerator implements IChunkGenerator {
     public AncientCavesGenerator(World worldIn) {
         this.world = worldIn;
         this.random = new Random(worldIn.getSeed());
+        DimensionManager.setWorld(912, (WorldServer) worldIn,
+                Objects.requireNonNull(worldIn.getMinecraftServer()));
     }
 
     public ChunkPrimer generateBedrock(ChunkPrimer chunkIn, Random random, int chunkX, int chunkZ) {

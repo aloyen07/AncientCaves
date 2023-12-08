@@ -4,7 +4,7 @@
   "package": "ru.aloyenz.ancientcaves.mixin",
   "refmap": "mixins.ancientcaves.refmap.json",
   "mixins": [
-    "AncientCavesWorldTypeMixin"
+    "DefaultDimensionSetter"
   ],
   "client": [],
   "server": []
