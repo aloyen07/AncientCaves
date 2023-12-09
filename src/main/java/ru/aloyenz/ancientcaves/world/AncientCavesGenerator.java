@@ -30,15 +30,21 @@ public class AncientCavesGenerator implements IChunkGenerator {
     private final Random random;
 
     private final IBlockState bedrock = Blocks.BEDROCK.getDefaultState();
+    private final IBlockState stone = Blocks.STONE.getDefaultState();
+
+    private final LandscapeGenerator landscapeGenerator;
+
+    public static final int solidStoneHeight = 64;
 
     public AncientCavesGenerator(World worldIn) {
         this.world = worldIn;
         this.random = new Random(worldIn.getSeed());
+        this.landscapeGenerator = new LandscapeGenerator(worldIn.getSeed());
         DimensionManager.setWorld(912, (WorldServer) worldIn,
                 Objects.requireNonNull(worldIn.getMinecraftServer()));
     }
 
-    public ChunkPrimer generateBedrock(ChunkPrimer chunkIn, Random random, int chunkX, int chunkZ) {
+    public ChunkPrimer generateBedrock(ChunkPrimer chunkIn, Random random) {
         for (int downer = 0; downer <= 1; downer++) {
             // 0 = Down layer, 1 = Upper layer
             int layer = 0;
@@ -64,6 +70,22 @@ public class AncientCavesGenerator implements IChunkGenerator {
             }
         }
 
+        // TODO: Сделать генерацию привязанной к сиду и неменяющейся от поведения игрока
+        return chunkIn;
+    }
+
+    public ChunkPrimer generateSolidStoneLayers(ChunkPrimer chunkIn) {
+        for (int x = 0; x <= 15; x++) {
+            for (int z = 0; z <= 15; z++) {
+                for (int y = 0; y <= solidStoneHeight; y++) {
+                    chunkIn.setBlockState(x, y, z, stone);
+                }
+                for (int y = 255; y >= (255 - solidStoneHeight); y--) {
+                    chunkIn.setBlockState(x, y, z, stone);
+                }
+            }
+        }
+
         return chunkIn;
     }
 
@@ -71,7 +93,9 @@ public class AncientCavesGenerator implements IChunkGenerator {
     public Chunk generateChunk(int x, int z) {
         ChunkPrimer chunkPrimer = new ChunkPrimer();
 
-        chunkPrimer = generateBedrock(chunkPrimer, random, x, z);
+        chunkPrimer = generateSolidStoneLayers(chunkPrimer);
+        chunkPrimer = landscapeGenerator.processChunk(chunkPrimer, x, z, this.world);
+        chunkPrimer = generateBedrock(chunkPrimer, random);
 
         return new Chunk(world, chunkPrimer, x, z);
     }
