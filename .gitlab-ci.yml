@@ -1,4 +1,4 @@
-image: gradle:8.5.0-jdk8
+image: gradle:6-jdk8
 
 stages:          # List of stages for jobs, and their order of execution
   - test

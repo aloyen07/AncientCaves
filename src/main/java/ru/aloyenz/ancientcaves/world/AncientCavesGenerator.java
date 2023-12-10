@@ -25,7 +25,6 @@ import java.util.Random;
 public class AncientCavesGenerator implements IChunkGenerator {
 
     private final World world;
-    private final Logger logger = AncientCaves.getLogger();
 
     private final Random random;
 
@@ -33,6 +32,7 @@ public class AncientCavesGenerator implements IChunkGenerator {
     private final IBlockState stone = Blocks.STONE.getDefaultState();
 
     private final LandscapeGenerator landscapeGenerator;
+    private final AncientCavesPopulator populator;
 
     public static final int solidStoneHeight = 64;
 
@@ -40,6 +40,7 @@ public class AncientCavesGenerator implements IChunkGenerator {
         this.world = worldIn;
         this.random = new Random(worldIn.getSeed());
         this.landscapeGenerator = new LandscapeGenerator(worldIn.getSeed());
+        this.populator = new AncientCavesPopulator(worldIn.getSeed());
         DimensionManager.setWorld(912, (WorldServer) worldIn,
                 Objects.requireNonNull(worldIn.getMinecraftServer()));
     }
@@ -102,7 +103,8 @@ public class AncientCavesGenerator implements IChunkGenerator {
 
     @Override
     public void populate(int x, int z) {
-
+//        populator.setWorkingWith(x, z, world);
+//        populator.plantFlowers(world);
     }
 
     @Override
