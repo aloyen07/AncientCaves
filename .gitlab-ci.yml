@@ -1,4 +1,4 @@
-image: gradle:6-jdk8
+image: jerray/android-builder:gradle4.9-jdk8-27-27.0.0
 
 stages:          # List of stages for jobs, and their order of execution
   - test
