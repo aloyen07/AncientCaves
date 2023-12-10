@@ -32,7 +32,7 @@
   3) Depending on the system... 
    - On Windows: Write `gradlew build`
     - On Linux: Write `./gradlew build`
-    4) Take the compiled mod from the directory `/[project folder]/build/libs
+    4) Take the compiled mod from the directory `/[project folder]/build/libs`
 
     **Or else...**
 
