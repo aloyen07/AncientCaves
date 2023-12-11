@@ -37,6 +37,28 @@ public class PerlinNoiseGenerator extends NoiseGenerator {
         }
     }
 
+    public double[] generateMassive(double[] xMas, double[] yMas, double[] zMas,
+                                    int octaves, double frequency, double amplitude,
+                                    boolean normalized,
+                                    boolean runAsynchronously, boolean runOnGPU) {
+        int i = xMas.length * yMas.length * zMas.length;
+        double[] massive = new double[i];
+        if (runAsynchronously) {
+            new Thread(() -> {
+                for (double x : xMas) {
+                    for (double y : yMas) {
+                        for (double z : zMas) {
+                            massive[(int) (x*y*z)] =
+                            instance.noise(x, y, z, octaves, frequency, amplitude, normalized);
+                        }
+                    }
+                }
+            }).start();
+        }
+
+        return massive;
+    }
+
     /**
      * Creates a seeded perlin noise generator for the given seed
      *

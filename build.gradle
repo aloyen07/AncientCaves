@@ -5,7 +5,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:6.+'
+        classpath 'net.minecraftforge.gradle:ForgeGradle:3.+'
         classpath "org.spongepowered:mixingradle:0.7-SNAPSHOT"
     }
 }
@@ -95,7 +95,7 @@ dependencies {
 
 mixin {
     add sourceSets.main, "mixins.ancientcaves.refmap.json"
-//    config 'mixins.ancientcaves.json'
+    config 'mixins.ancientcaves.json'
 }
 
 // Example for how to get properties into the manifest for reading by the runtime..
