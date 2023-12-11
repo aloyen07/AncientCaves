@@ -1,6 +1,9 @@
 package ru.aloyenz.ancientcaves.noise;
 
 import java.util.Random;
+
+import org.jocl.*;
+import ru.aloyenz.ancientcaves.AncientCaves;
 import ru.aloyenz.ancientcaves.noise.NoiseGenerator;
 
 /**
@@ -11,6 +14,7 @@ public class PerlinNoiseGenerator extends NoiseGenerator {
             {1, 0, 1}, {-1, 0, 1}, {1, 0, -1}, {-1, 0, -1},
             {0, 1, 1}, {0, -1, 1}, {0, 1, -1}, {0, -1, -1}};
     private static final PerlinNoiseGenerator instance = new PerlinNoiseGenerator();
+    private final AncientCaves ancientCaves = AncientCaves.getInstance();
 
     protected PerlinNoiseGenerator() {
         int[] p = {151, 160, 137, 91, 90, 15, 131, 13, 201,
@@ -37,13 +41,25 @@ public class PerlinNoiseGenerator extends NoiseGenerator {
         }
     }
 
+    private int getIntFromBool(boolean flag) {
+        if (flag) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
     public double[] generateMassive(double[] xMas, double[] yMas, double[] zMas,
                                     int octaves, double frequency, double amplitude,
                                     boolean normalized,
-                                    boolean runAsynchronously, boolean runOnGPU) {
+                                    boolean runAsynchronously, boolean runOnGPU,
+                                    long seed) {
+
         int i = xMas.length * yMas.length * zMas.length;
         double[] massive = new double[i];
+
         if (runAsynchronously) {
+
             new Thread(() -> {
                 for (double x : xMas) {
                     for (double y : yMas) {
@@ -54,6 +70,109 @@ public class PerlinNoiseGenerator extends NoiseGenerator {
                     }
                 }
             }).start();
+
+        } else if (AncientCaves.getInstance().isGpuEnabled() && runOnGPU) {
+
+            cl_mem[] memObjects = new cl_mem[14];
+
+            // ******** TASK DETAILS ******** //
+
+            // X Coordinates
+            memObjects[0] = CL.clCreateBuffer(ancientCaves.context,
+                    CL.CL_MEM_READ_ONLY | CL.CL_MEM_COPY_HOST_PTR,
+                    (long) Sizeof.cl_double * xMas.length, Pointer.to(xMas), null);
+            // Y Coordinates
+            memObjects[1] = CL.clCreateBuffer(ancientCaves.context,
+                    CL.CL_MEM_READ_ONLY | CL.CL_MEM_COPY_HOST_PTR,
+                    (long) Sizeof.cl_double * yMas.length, Pointer.to(yMas), null);
+            // Z Coordinates
+            memObjects[2] = CL.clCreateBuffer(ancientCaves.context,
+                    CL.CL_MEM_READ_ONLY | CL.CL_MEM_COPY_HOST_PTR,
+                    (long) Sizeof.cl_float * zMas.length, Pointer.to(zMas), null);
+            // Octaves
+            memObjects[3] = CL.clCreateBuffer(ancientCaves.context,
+                    CL.CL_MEM_READ_ONLY | CL.CL_MEM_COPY_HOST_PTR,
+                    Sizeof.cl_int, Pointer.to(new int[] { octaves }), null);
+            // Frequency
+            memObjects[4] = CL.clCreateBuffer(ancientCaves.context,
+                    CL.CL_MEM_READ_ONLY | CL.CL_MEM_COPY_HOST_PTR,
+                    Sizeof.cl_double, Pointer.to(new double[] { frequency }), null);
+            // Amplitude
+            memObjects[5] = CL.clCreateBuffer(ancientCaves.context,
+                    CL.CL_MEM_READ_ONLY | CL.CL_MEM_COPY_HOST_PTR,
+                    Sizeof.cl_double, Pointer.to(new double[] { amplitude }), null);
+            // Normalize (bool)
+            memObjects[6] = CL.clCreateBuffer(ancientCaves.context,
+                    CL.CL_MEM_READ_ONLY | CL.CL_MEM_COPY_HOST_PTR,
+                    Sizeof.cl_int, Pointer.to(new int[] { getIntFromBool(normalized) }), null);
+
+            // ******** END TASK DETAILS ******** //
+
+
+            // Output
+            memObjects[7] = CL.clCreateBuffer(ancientCaves.context,
+                    CL.CL_MEM_READ_WRITE,
+                    (long) Sizeof.cl_double * xMas.length, null, null);
+            // Initialized (bool)
+            memObjects[8] = CL.clCreateBuffer(ancientCaves.context,
+                    CL.CL_MEM_READ_WRITE,
+                    Sizeof.cl_int, null, null);
+            // Perm
+            memObjects[9] = CL.clCreateBuffer(ancientCaves.context,
+                    CL.CL_MEM_READ_WRITE,
+                    (long) Sizeof.cl_int * 512, null, null);
+            // OffsetX
+            memObjects[10] = CL.clCreateBuffer(ancientCaves.context,
+                    CL.CL_MEM_READ_WRITE,
+                    Sizeof.cl_double , null, null);
+            // OffsetY
+            memObjects[11] = CL.clCreateBuffer(ancientCaves.context,
+                    CL.CL_MEM_READ_WRITE,
+                    Sizeof.cl_double, null, null);
+            // OffsetZ
+            memObjects[12] = CL.clCreateBuffer(ancientCaves.context,
+                    CL.CL_MEM_READ_WRITE,
+                    Sizeof.cl_double, null, null);
+            // internalSeed
+            memObjects[13] = CL.clCreateBuffer(ancientCaves.context,
+                    CL.CL_MEM_READ_WRITE,
+                    Sizeof.cl_long, null, null);
+
+
+            // Create the program from the source code
+            cl_program program = CL.clCreateProgramWithSource(ancientCaves.context,
+                    1, new String[]{ ancientCaves.perlinNoiseProgram.replace("{/SEED}", String.valueOf(seed)) }, null, null);
+
+            CL.clBuildProgram(program, 0, null, null, null, null);
+
+            cl_kernel kernel = CL.clCreateKernel(program, "perlinNoise", null);
+
+            // Set the arguments for the kernel
+            for (int ix = 0; ix <= 14; ix++) {
+                CL.clSetKernelArg(kernel, ix,
+                        Sizeof.cl_mem, Pointer.to(memObjects[ix]));
+            }
+
+            // Set the work-item dimensions
+            long[] global_work_size = new long[]{xMas.length};
+            long[] local_work_size = new long[]{1};
+
+            // Execute the kernel
+            CL.clEnqueueNDRangeKernel(ancientCaves.commandQueue, kernel, 1, null,
+                    global_work_size, local_work_size, 0, null, null);
+
+            // Read the output data
+            CL.clEnqueueReadBuffer(ancientCaves.commandQueue, memObjects[6], CL.CL_TRUE, 0,
+                    (long) xMas.length * Sizeof.cl_double, Pointer.to(massive), 0, null, null);
+
+            // Cleanup
+            for (int ix = 0; ix <= 14; ix++) {
+                CL.clReleaseMemObject(memObjects[0]);
+            }
+            CL.clReleaseKernel(kernel);
+            CL.clReleaseProgram(program);
+            CL.clReleaseCommandQueue(ancientCaves.commandQueue);
+            CL.clReleaseContext(ancientCaves.context);
         }
 
         return massive;
