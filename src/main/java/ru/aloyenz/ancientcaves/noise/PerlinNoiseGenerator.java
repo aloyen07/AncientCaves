@@ -2,6 +2,7 @@ package ru.aloyenz.ancientcaves.noise;
 
 import java.util.Random;
 
+import org.codehaus.plexus.util.CollectionUtils;
 import org.jocl.*;
 import ru.aloyenz.ancientcaves.AncientCaves;
 import ru.aloyenz.ancientcaves.noise.NoiseGenerator;
@@ -55,19 +56,12 @@ public class PerlinNoiseGenerator extends NoiseGenerator {
                                     boolean runAsynchronously, boolean runOnGPU,
                                     long seed) {
 
-        int i = xMas.length * yMas.length * zMas.length;
-        double[] massive = new double[i];
+        double[] massive = new double[xMas.length];
 
         if (runAsynchronously) {
-
             new Thread(() -> {
-                for (double x : xMas) {
-                    for (double y : yMas) {
-                        for (double z : zMas) {
-                            massive[(int) (x*y*z)] =
-                            instance.noise(x, y, z, octaves, frequency, amplitude, normalized);
-                        }
-                    }
+                for (int i = 0; i < xMas.length; i++) {
+                    massive[i] = noise(xMas[i], yMas[i], zMas[i], octaves, frequency, amplitude, normalized);
                 }
             }).start();
 
@@ -148,7 +142,7 @@ public class PerlinNoiseGenerator extends NoiseGenerator {
             cl_kernel kernel = CL.clCreateKernel(program, "perlinNoise", null);
 
             // Set the arguments for the kernel
-            for (int ix = 0; ix <= 14; ix++) {
+            for (int ix = 0; ix < 14; ix++) {
                 CL.clSetKernelArg(kernel, ix,
                         Sizeof.cl_mem, Pointer.to(memObjects[ix]));
             }
