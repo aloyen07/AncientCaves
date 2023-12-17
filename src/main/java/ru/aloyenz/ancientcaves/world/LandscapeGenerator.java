@@ -6,6 +6,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeProvider;
 import net.minecraft.world.chunk.ChunkPrimer;
+import ru.aloyenz.ancientcaves.AncientCaves;
 import ru.aloyenz.ancientcaves.noise.PerlinNoiseGenerator;
 
 import java.util.Random;
@@ -108,23 +109,67 @@ public class LandscapeGenerator {
         Biome[] biomes = biomeProvider.getBiomes(new Biome[]{}, chunkX, chunkZ, 16, 16, true);
 
         // Generating a base-landscape
+//        long startTime = System.currentTimeMillis();
+        double[] upperLandscapeNoiseX = new double[16*16*(baseLandscapeEnd-baseLandscapeStart+1)];
+        double[] upperLandscapeNoiseY = new double[16*16*(baseLandscapeEnd-baseLandscapeStart+1)];
+        double[] upperLandscapeNoiseZ = new double[16*16*(baseLandscapeEnd-baseLandscapeStart+1)];
+        double[][] upperLandscapeNoiseResult = new double[1][16*16*(baseLandscapeEnd-baseLandscapeStart+1)];
+        double[] minusLandscapeNoiseX = new double[16*16*(baseLandscapeEnd-baseLandscapeStart+1)];
+        double[] minusLandscapeNoiseY = new double[16*16*(baseLandscapeEnd-baseLandscapeStart+1)];
+        double[] minusLandscapeNoiseZ = new double[16*16*(baseLandscapeEnd-baseLandscapeStart+1)];
+        double[][] minusLandscapeNoiseResult = new double[1][16*16*(baseLandscapeEnd-baseLandscapeStart+1)];
+        int bz = 0;
         for (int x = 0; x <= 15; x++) {
             for (int y = baseLandscapeStart; y <= baseLandscapeEnd; y++) {
                 for (int z = 0; z <= 15; z++) {
-                    if (baseNoiseGenerator.noise(
-                            (double) (x + (chunkX*16))/xSize, (double) y/ySize, (double) (z + (chunkZ*16))/zSize,
-                            octaves, frequency, amplitude) <= applyRange) {
+//                    if (baseNoiseGenerator.noise(
+//                            (double) (x + (chunkX*16))/xSize, (double) y/ySize, (double) (z + (chunkZ*16))/zSize,
+//                            octaves, frequency, amplitude) <= applyRange) {
+//
+//                        if (!(minusNoiseGenerator.noise(
+//                                (double) (x + (chunkX * 16)) / mXSize, (double) y / mYSize, (double) (z + (chunkZ * 16)) / mZSize,
+//                                mOctaves, mFrequency, mAmplitude) <= mApplyRange)) {
+//                            chunkIn.setBlockState(x, y, z, stone);
+//
+//                        }
+//                    }
 
-                        if (!(minusNoiseGenerator.noise(
-                                (double) (x + (chunkX * 16)) / mXSize, (double) y / mYSize, (double) (z + (chunkZ * 16)) / mZSize,
-                                mOctaves, mFrequency, mAmplitude) <= mApplyRange)) {
-                            chunkIn.setBlockState(x, y, z, stone);
-
-                        }
-                    }
+                    upperLandscapeNoiseX[bz] = (double) (x + (chunkX*16))/xSize;
+                    upperLandscapeNoiseY[bz] = (double) y/ySize;
+                    upperLandscapeNoiseZ[bz] = (double) (z + (chunkZ*16))/zSize;
+                    minusLandscapeNoiseX[bz] = (double) (x + (chunkX * 16)) / mXSize;
+                    minusLandscapeNoiseY[bz] = (double) y / mYSize;
+                    minusLandscapeNoiseZ[bz] = (double) (z + (chunkZ * 16)) / mZSize;
+                    bz += 1;
                 }
             }
         }
+
+        upperLandscapeNoiseResult[0] = baseNoiseGenerator.generateMassiveAsyncronosly(
+                upperLandscapeNoiseX, upperLandscapeNoiseY, upperLandscapeNoiseZ,
+                octaves, frequency, amplitude, true, AncientCaves.taskCounter, true);
+
+        minusLandscapeNoiseResult[0] = minusNoiseGenerator.generateMassiveAsyncronosly(
+                minusLandscapeNoiseX, minusLandscapeNoiseY, minusLandscapeNoiseZ,
+                octaves, frequency, amplitude, true, AncientCaves.taskCounter, true);
+
+        double[] tester = upperLandscapeNoiseResult[0];
+        bz = 0;
+        for (int x = 0; x <= 15; x++) {
+            for (int y = baseLandscapeStart; y <= baseLandscapeEnd; y++) {
+                for (int z = 0; z <= 15; z++) {
+                    if (upperLandscapeNoiseResult[0][bz] <= applyRange) {
+//                        if (!(minusLandscapeNoiseResult[0][bz] <= mApplyRange)) {
+//                            chunkIn.setBlockState(x, y, z, stone);
+//                        }
+
+                        chunkIn.setBlockState(x, y, z, stone);
+                    }
+                    bz += 1;
+                }
+            }
+        }
+//        AncientCaves.getLogger().info("Generated chunkBase in " + (startTime - System.currentTimeMillis()) + " ms.");
 
         // Generating downer-scape
         double smoothStep = (double) smoothModificator/(smoothLayerSize - endBorder);

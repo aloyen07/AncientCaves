@@ -50,17 +50,30 @@ public class AncientCaves
     }
 
     // ********* GPU PART ********* //
-    public final boolean gpuEnabled;
+    private boolean gpuEnabled;
     public final String perlinNoiseProgram;
-    public final cl_context context;
-    public final cl_command_queue commandQueue;
-    public final cl_device_id device;
+    private cl_context context;
+    private cl_command_queue commandQueue;
+    private cl_device_id device;
 
+    public cl_context getContext() {
+        return context;
+    }
+
+    public cl_command_queue getCommandQueue() {
+        return commandQueue;
+    }
+
+    public cl_device_id getDevice() {
+        return device;
+    }
 
     public boolean isGpuEnabled() {
         return gpuEnabled;
     }
     // ******* END GPU PART ******* //
+
+    public static final int taskCounter = 64*2;
 
     public AncientCaves() throws IOException {
         super();
@@ -82,47 +95,58 @@ public class AncientCaves
 
         this.perlinNoiseProgram = program.toString();
 
-        CL.setExceptionsEnabled(true);
+        try {
+            CL.setExceptionsEnabled(true);
 
-        // The platform, device type and device number
-        // that will be used
-        final int platformIndex = 0;
-        final long deviceType = CL.CL_DEVICE_TYPE_ALL;
-        final int deviceIndex = 0;
+            // The platform, device type and device number
+            // that will be used
+            final int platformIndex = 0;
+            final long deviceType = CL.CL_DEVICE_TYPE_ALL;
+            final int deviceIndex = 0;
 
-        // Obtain the number of platforms
-        int[] numPlatformsArray = new int[1];
-        CL.clGetPlatformIDs(0, null, numPlatformsArray);
-        int numPlatforms = numPlatformsArray[0];
+            // Obtain the number of platforms
+            int[] numPlatformsArray = new int[1];
+            CL.clGetPlatformIDs(0, null, numPlatformsArray);
+            int numPlatforms = numPlatformsArray[0];
 
-        // Obtain a platform ID
-        cl_platform_id[] platforms = new cl_platform_id[numPlatforms];
-        CL.clGetPlatformIDs(platforms.length, platforms, null);
-        cl_platform_id platform = platforms[platformIndex];
+            // Obtain a platform ID
+            cl_platform_id[] platforms = new cl_platform_id[numPlatforms];
+            CL.clGetPlatformIDs(platforms.length, platforms, null);
+            cl_platform_id platform = platforms[platformIndex];
 
-        // Initialize the context properties
-        cl_context_properties contextProperties = new cl_context_properties();
-        contextProperties.addProperty(CL.CL_CONTEXT_PLATFORM, platform);
+            // Initialize the context properties
+            cl_context_properties contextProperties = new cl_context_properties();
+            contextProperties.addProperty(CL.CL_CONTEXT_PLATFORM, platform);
 
-        // Obtain the number of devices for the platform
-        int[] numDevicesArray = new int[1];
-        CL.clGetDeviceIDs(platform, deviceType, 0, null, numDevicesArray);
-        int numDevices = numDevicesArray[0];
+            // Obtain the number of devices for the platform
+            int[] numDevicesArray = new int[1];
+            CL.clGetDeviceIDs(platform, deviceType, 0, null, numDevicesArray);
+            int numDevices = numDevicesArray[0];
 
-        // Obtain a device ID
-        cl_device_id[] devices = new cl_device_id[numDevices];
-        CL.clGetDeviceIDs(platform, deviceType, numDevices, devices, null);
-        device = devices[deviceIndex];
+            // Obtain a device ID
+            cl_device_id[] devices = new cl_device_id[numDevices];
+            CL.clGetDeviceIDs(platform, deviceType, numDevices, devices, null);
+            device = devices[deviceIndex];
 
-        // Create a context for the selected device
-        context = CL.clCreateContext(
-                contextProperties, 1, new cl_device_id[]{device},
-                null, null, null);
+            // Create a context for the selected device
+            context = CL.clCreateContext(
+                    contextProperties, 1, new cl_device_id[]{device},
+                    null, null, null);
 
-        // Create a command-queue for the selected device
-        commandQueue =
-                CL.clCreateCommandQueue(context, device, 0, null);
+            // Create a command-queue for the selected device
+            commandQueue =
+                    CL.clCreateCommandQueue(context, device, 0, null);
 
+        } catch (UnsatisfiedLinkError error) {
+            if (logger == null) {
+                System.out.println("[ERROR] GPU PerlinNoiseGenerating could not be enabled!");
+                System.out.println(error.fillInStackTrace().toString());
+            } else {
+                logger.error("GPU PerlinNoiseGenerating could not be enabled!");
+                logger.error(error);
+            }
+            this.gpuEnabled = false;
+        }
     }
 
     @EventHandler

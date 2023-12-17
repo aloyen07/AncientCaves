@@ -1,11 +1,11 @@
 package ru.aloyenz.ancientcaves.noise;
 
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-import org.codehaus.plexus.util.CollectionUtils;
 import org.jocl.*;
 import ru.aloyenz.ancientcaves.AncientCaves;
-import ru.aloyenz.ancientcaves.noise.NoiseGenerator;
 
 /**
  * Generates noise using the "classic" perlin generator
@@ -50,6 +50,62 @@ public class PerlinNoiseGenerator extends NoiseGenerator {
         }
     }
 
+    boolean logged = true;
+
+    public double[] generateMassiveAsyncronosly(double[] xMas, double[] yMas, double[] zMas,
+                                                int octaves, double frequency, double amplitude,
+                                                boolean normalized,
+                                                int taskCount,
+                                                boolean runAsynchronously) {
+        double[] massive = new double[xMas.length];
+
+        if (runAsynchronously) {
+            int partCount = (int) Math.ceil((double) xMas.length /taskCount);
+            double[][][] parts = new double[partCount][3][taskCount];
+
+            // 0 = X, 1 = Y, 2 = Z
+            for (int part = 0; part < partCount; part++) {
+                for (int task = 0; task < taskCount; task++) {
+                    parts[part][0][task] = xMas[part*taskCount + task];
+                    parts[part][1][task] = yMas[part*taskCount + task];
+                    parts[part][2][task] = zMas[part*taskCount + task];
+                }
+            }
+
+            ExecutorService es = Executors.newCachedThreadPool();
+            for (int partNow = 0; partNow < parts.length; partNow ++) {
+                int finalPartNow = partNow;
+                es.execute(() -> {
+                    {
+                        double[][] part = parts[finalPartNow];
+                        double[] tasksX = part[0];
+                        double[] tasksY = part[1];
+                        double[] tasksZ = part[2];
+
+                        for (int i = 0; i < tasksX.length; i++) {
+                            massive[finalPartNow*taskCount + i] = noise(
+                                    tasksX[i], tasksY[i], tasksZ[i], octaves, frequency, amplitude, normalized);
+                        }
+
+                    }
+                });
+            }
+            es.shutdown();
+        } else {
+            for (int i = 0; i < xMas.length; i++) {
+                massive[i] = noise(xMas[i], yMas[i], zMas[i], octaves, frequency, amplitude, normalized);
+            }
+        }
+
+//        if (!logged) {
+//            AncientCaves.getLogger().info(massive);
+//            logged = true;
+//        }
+
+        return massive;
+    }
+
+    @Deprecated
     public double[] generateMassive(double[] xMas, double[] yMas, double[] zMas,
                                     int octaves, double frequency, double amplitude,
                                     boolean normalized,
@@ -58,45 +114,48 @@ public class PerlinNoiseGenerator extends NoiseGenerator {
 
         double[] massive = new double[xMas.length];
 
-        if (runAsynchronously) {
+        if (runAsynchronously && !runOnGPU && !ancientCaves.isGpuEnabled()) {
             new Thread(() -> {
                 for (int i = 0; i < xMas.length; i++) {
                     massive[i] = noise(xMas[i], yMas[i], zMas[i], octaves, frequency, amplitude, normalized);
                 }
             }).start();
 
-        } else if (AncientCaves.getInstance().isGpuEnabled() && runOnGPU) {
+        } else if (ancientCaves.isGpuEnabled() && runOnGPU) {
+
+            cl_context context = ancientCaves.getContext();
+            cl_command_queue commandQueue = ancientCaves.getCommandQueue();
 
             cl_mem[] memObjects = new cl_mem[14];
 
             // ******** TASK DETAILS ******** //
 
             // X Coordinates
-            memObjects[0] = CL.clCreateBuffer(ancientCaves.context,
+            memObjects[0] = CL.clCreateBuffer(context,
                     CL.CL_MEM_READ_ONLY | CL.CL_MEM_COPY_HOST_PTR,
                     (long) Sizeof.cl_double * xMas.length, Pointer.to(xMas), null);
             // Y Coordinates
-            memObjects[1] = CL.clCreateBuffer(ancientCaves.context,
+            memObjects[1] = CL.clCreateBuffer(context,
                     CL.CL_MEM_READ_ONLY | CL.CL_MEM_COPY_HOST_PTR,
                     (long) Sizeof.cl_double * yMas.length, Pointer.to(yMas), null);
             // Z Coordinates
-            memObjects[2] = CL.clCreateBuffer(ancientCaves.context,
+            memObjects[2] = CL.clCreateBuffer(context,
                     CL.CL_MEM_READ_ONLY | CL.CL_MEM_COPY_HOST_PTR,
                     (long) Sizeof.cl_float * zMas.length, Pointer.to(zMas), null);
             // Octaves
-            memObjects[3] = CL.clCreateBuffer(ancientCaves.context,
+            memObjects[3] = CL.clCreateBuffer(context,
                     CL.CL_MEM_READ_ONLY | CL.CL_MEM_COPY_HOST_PTR,
                     Sizeof.cl_int, Pointer.to(new int[] { octaves }), null);
             // Frequency
-            memObjects[4] = CL.clCreateBuffer(ancientCaves.context,
+            memObjects[4] = CL.clCreateBuffer(context,
                     CL.CL_MEM_READ_ONLY | CL.CL_MEM_COPY_HOST_PTR,
                     Sizeof.cl_double, Pointer.to(new double[] { frequency }), null);
             // Amplitude
-            memObjects[5] = CL.clCreateBuffer(ancientCaves.context,
+            memObjects[5] = CL.clCreateBuffer(context,
                     CL.CL_MEM_READ_ONLY | CL.CL_MEM_COPY_HOST_PTR,
                     Sizeof.cl_double, Pointer.to(new double[] { amplitude }), null);
             // Normalize (bool)
-            memObjects[6] = CL.clCreateBuffer(ancientCaves.context,
+            memObjects[6] = CL.clCreateBuffer(context,
                     CL.CL_MEM_READ_ONLY | CL.CL_MEM_COPY_HOST_PTR,
                     Sizeof.cl_int, Pointer.to(new int[] { getIntFromBool(normalized) }), null);
 
@@ -104,37 +163,37 @@ public class PerlinNoiseGenerator extends NoiseGenerator {
 
 
             // Output
-            memObjects[7] = CL.clCreateBuffer(ancientCaves.context,
+            memObjects[7] = CL.clCreateBuffer(context,
                     CL.CL_MEM_READ_WRITE,
                     (long) Sizeof.cl_double * xMas.length, null, null);
             // Initialized (bool)
-            memObjects[8] = CL.clCreateBuffer(ancientCaves.context,
+            memObjects[8] = CL.clCreateBuffer(context,
                     CL.CL_MEM_READ_WRITE,
                     Sizeof.cl_int, null, null);
             // Perm
-            memObjects[9] = CL.clCreateBuffer(ancientCaves.context,
+            memObjects[9] = CL.clCreateBuffer(context,
                     CL.CL_MEM_READ_WRITE,
                     (long) Sizeof.cl_int * 512, null, null);
             // OffsetX
-            memObjects[10] = CL.clCreateBuffer(ancientCaves.context,
+            memObjects[10] = CL.clCreateBuffer(context,
                     CL.CL_MEM_READ_WRITE,
                     Sizeof.cl_double , null, null);
             // OffsetY
-            memObjects[11] = CL.clCreateBuffer(ancientCaves.context,
+            memObjects[11] = CL.clCreateBuffer(context,
                     CL.CL_MEM_READ_WRITE,
                     Sizeof.cl_double, null, null);
             // OffsetZ
-            memObjects[12] = CL.clCreateBuffer(ancientCaves.context,
+            memObjects[12] = CL.clCreateBuffer(context,
                     CL.CL_MEM_READ_WRITE,
                     Sizeof.cl_double, null, null);
             // internalSeed
-            memObjects[13] = CL.clCreateBuffer(ancientCaves.context,
+            memObjects[13] = CL.clCreateBuffer(context,
                     CL.CL_MEM_READ_WRITE,
                     Sizeof.cl_long, null, null);
 
 
             // Create the program from the source code
-            cl_program program = CL.clCreateProgramWithSource(ancientCaves.context,
+            cl_program program = CL.clCreateProgramWithSource(context,
                     1, new String[]{ ancientCaves.perlinNoiseProgram.replace("{/SEED}", String.valueOf(seed)) }, null, null);
 
             CL.clBuildProgram(program, 0, null, null, null, null);
@@ -152,11 +211,11 @@ public class PerlinNoiseGenerator extends NoiseGenerator {
             long[] local_work_size = new long[]{1};
 
             // Execute the kernel
-            CL.clEnqueueNDRangeKernel(ancientCaves.commandQueue, kernel, 1, null,
+            CL.clEnqueueNDRangeKernel(commandQueue, kernel, 1, null,
                     global_work_size, local_work_size, 0, null, null);
 
             // Read the output data
-            CL.clEnqueueReadBuffer(ancientCaves.commandQueue, memObjects[6], CL.CL_TRUE, 0,
+            CL.clEnqueueReadBuffer(commandQueue, memObjects[6], CL.CL_TRUE, 0,
                     (long) xMas.length * Sizeof.cl_double, Pointer.to(massive), 0, null, null);
 
             // Cleanup
@@ -165,8 +224,12 @@ public class PerlinNoiseGenerator extends NoiseGenerator {
             }
             CL.clReleaseKernel(kernel);
             CL.clReleaseProgram(program);
-            CL.clReleaseCommandQueue(ancientCaves.commandQueue);
-            CL.clReleaseContext(ancientCaves.context);
+            CL.clReleaseCommandQueue(commandQueue);
+            CL.clReleaseContext(context);
+        } else {
+            for (int i = 0; i < xMas.length; i++) {
+                massive[i] = noise(xMas[i], yMas[i], zMas[i], octaves, frequency, amplitude, normalized);
+            }
         }
 
         return massive;

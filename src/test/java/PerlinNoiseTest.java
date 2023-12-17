@@ -46,13 +46,11 @@ public class PerlinNoiseTest {
     public void testAsyncPerlinNoise() {
         long taskStart = System.currentTimeMillis();
         for (int ymax = 0; ymax <= 255; ymax++) {
-            int finalYmax = ymax;
-            new Thread(() -> {
-                long start = System.currentTimeMillis();
+            long start = System.currentTimeMillis();
                 double[] xs = new double[16 * 16 * 256];
                 double[] ys = new double[16 * 16 * 256];
                 double[] zs = new double[16 * 16 * 256];
-                for (int y = 0; y <= finalYmax; y++) {
+                for (int y = 0; y <= ymax; y++) {
                     for (int x = 0; x <= 15; x++) {
                         for (int z = 0; z <= 15; z++) {
                             xs[x * y * z] = x;
@@ -62,18 +60,18 @@ public class PerlinNoiseTest {
                     }
                 }
 
-                generator.generateMassive(xs,
+                generator.generateMassiveAsyncronosly(xs,
                         ys,
                         zs,
                         5,
                         0.0001D,
                         0.0001D,
-                        true, true, false, seed);
+                        true, 32*(64*2), true);
 
                 long end = System.currentTimeMillis();
 
-                System.out.println("[ACPUPN] Generated " + finalYmax + " layers. Time elapsed: " + (end - start) + "ms.");
-            }).run();
+                System.out.println("[ACPUPN] Generated " + ymax + " layers. Time elapsed: " + (end - start) + "ms.");
+
         }
 
         System.out.println("[ACPUPN] Task ended. Time elapsed: " + (System.currentTimeMillis() - taskStart) + "ms.");
