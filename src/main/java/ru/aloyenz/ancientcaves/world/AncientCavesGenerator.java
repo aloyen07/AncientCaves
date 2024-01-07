@@ -34,6 +34,8 @@ public class AncientCavesGenerator implements IChunkGenerator {
     private final LandscapeGenerator landscapeGenerator;
     private final AncientCavesPopulator populator;
 
+    private Biome[] biomes = new Biome[]{};
+
     public static final int solidStoneHeight = 64;
 
     public AncientCavesGenerator(World worldIn) {
@@ -93,12 +95,14 @@ public class AncientCavesGenerator implements IChunkGenerator {
     @Override
     public Chunk generateChunk(int x, int z) {
         ChunkPrimer chunkPrimer = new ChunkPrimer();
+        biomes = world.getBiomeProvider().getBiomes(biomes, x*16, z*16, 16, 16);
 
         chunkPrimer = generateSolidStoneLayers(chunkPrimer);
-        chunkPrimer = landscapeGenerator.processChunk(chunkPrimer, x, z, this.world);
+        chunkPrimer = landscapeGenerator.processChunk(chunkPrimer, x, z, biomes);
         chunkPrimer = generateBedrock(chunkPrimer, random);
 
-        return new Chunk(world, chunkPrimer, x, z);
+        Chunk chunk = new Chunk(world, chunkPrimer, x, z);
+        return chunk;
     }
 
     @Override

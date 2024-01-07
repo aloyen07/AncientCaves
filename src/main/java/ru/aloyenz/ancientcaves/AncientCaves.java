@@ -1,6 +1,7 @@
 package ru.aloyenz.ancientcaves;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.WorldSettings;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventHandler;
 import net.minecraftforge.fml.common.SidedProxy;
