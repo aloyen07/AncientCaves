@@ -2,11 +2,11 @@ package ru.aloyenz.ancientcaves.world;
 
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
-import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.ChunkPrimer;
 import ru.aloyenz.ancientcaves.noise.PerlinNoiseGenerator;
 
+import java.util.List;
 import java.util.Random;
 
 public class LandscapeGenerator {
@@ -22,7 +22,6 @@ public class LandscapeGenerator {
     private final IBlockState stone = Blocks.STONE.getDefaultState();
     private final IBlockState air = Blocks.AIR.getDefaultState();
     private final IBlockState water = Blocks.WATER.getDefaultState();
-    private final IBlockState dirtBlock = Blocks.DIRT.getDefaultState();
 
     public static final int baseLandscapeStart = AncientCavesGenerator.solidStoneHeight + smoothLayerSize;
     private static final int baseLandscapeEnd = 256 - AncientCavesGenerator.solidStoneHeight - smoothLayerSize;
@@ -191,6 +190,38 @@ public class LandscapeGenerator {
             }
         }
 
+        // Placing nature blocks
+        // TODO: Fix air-replace for nature-blocks
+        for (int x = 0; x <= 15; x++) {
+            for (int z = 0; z <= 15; z++) {
+                boolean trigger = false;
+                BiomeGeneratorSettings settings = BiomeGeneratorSettings.getFromBiome(biomes[x*z]);
+                for (int y = 256; y >= 0; y--) {
+                    IBlockState blockState = chunkIn.getBlockState(x, y, z);
+                    if (blockState.equals(air) && !trigger) {
+                        trigger = true;
+                        continue;
+                    }
+
+                    if (blockState.equals(stone) && trigger) {
+                        trigger = false;
+                        List<IBlockState> blocks;
+
+                        if (y >= waterLevel) {
+                            blocks = settings.getSurfaceBlocks().getBlocks();
+                        } else {
+                            blocks = settings.getUnderwaterBlocks().getBlocks();
+                        }
+
+                        int diff = 0;
+                        for (IBlockState block : blocks) {
+                            chunkIn.setBlockState(x, y - diff, z, block);
+                            diff += 1;
+                        }
+                    }
+                }
+            }
+        }
 
 //        // Adding a water
 //        for (int x = 0; x <= 15; x++) {
@@ -203,45 +234,6 @@ public class LandscapeGenerator {
 //                }
 //            }
 //        }
-
-        // Placing nature blocks
-        for (int x = 0; x <= 15; x++) {
-            for (int z = 0; z <= 15; z++) {
-                boolean trigger = false;
-                boolean waterDecorate = false;
-                Biome biome = biomes[x * z];
-                for (int y = 256; y >= 0; y--) {
-                    IBlockState blockState = chunkIn.getBlockState(x, y, z);
-                    if (blockState.equals(air) && !trigger) {
-                        trigger = true;
-                        continue;
-                    }
-
-                    if (blockState.equals(water) && !waterDecorate) {
-                        waterDecorate = true;
-                        continue;
-                    }
-
-                    if (blockState.equals(stone) && trigger && !waterDecorate) {
-                        trigger = false;
-                        for (int i = 1; i <= 3; i++) {
-                            if (chunkIn.getBlockState(x, y-i, z).equals(stone)) {
-                                chunkIn.setBlockState(x, y-i, z, dirtBlock);
-                            }
-                        }
-                    }
-                    if (blockState.equals(stone) && waterDecorate) {
-                        waterDecorate = false;
-                        trigger = false;
-                        for (int i = 0; i <= 3; i++) {
-                            if (chunkIn.getBlockState(x, y-1, z).equals(stone)) {
-                                chunkIn.setBlockState(x, y - i, z, dirtBlock);
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
         return chunkIn;
     }

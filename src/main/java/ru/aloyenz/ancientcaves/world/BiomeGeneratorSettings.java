@@ -5,54 +5,80 @@ import net.minecraft.init.Blocks;
 import net.minecraft.world.biome.Biome;
 
 import javax.annotation.Nullable;
+import java.util.HashMap;
 
-public enum BiomeGeneratorSettings {
+public class BiomeGeneratorSettings {
 
-    PLAINS(Biomes.PLAINS,
-            new GeneratorSettings(60, 160, 60, 16, 0.01D, 0.001D,
-                    false, 4D),
-            new GeneratorSettings(30, 80, 30, 6, 0.01D, 0.001D,
-                    false, 2D),
+    private static final HashMap<String, BiomeGeneratorSettings> settings = new HashMap<>();
+
+    public static final BiomeGeneratorSettings UNDEFINED = new BiomeGeneratorSettings(Biomes.EXTREME_HILLS,
+            new GeneratorSettings(70, 150, 90, 14, 0.01D, 0.001D,
+                    false, 4D), // Upper
+
+            new GeneratorSettings(30, 140, 50, 6, 0.01D, 0.001D,
+                    false, 2D), // Lower
+
             new GeneratorSettings(15, 40, 15, 5, 0.01D, 0.001D,
-                    false, 1D),
-            1.5D,
-            new TerrainTopBlockArray().addBlock(Blocks.GRASS).addBlocks(Blocks.DIRT, 3)
+                    false, 0D), // Decorator
+
+            1D, // applyRange
+
+            TerrainTopBlockArray.builder().addBlock(Blocks.GRASS).addBlocks(Blocks.DIRT, 3).build(),
+            TerrainTopBlockArray.builder().addBlocks(Blocks.GRAVEL,2).addBlocks(Blocks.DIRT,4).build()
     );
 
-    BiomeGeneratorSettings(Biome linkedBiome,
+//    public static final BiomeGeneratorSettings PLAINS = new BiomeGeneratorSettings(Biomes.PLAINS,
+//            new GeneratorSettings(60, 160, 60, 16, 0.01D, 0.001D,
+//                    false, 4D),
+//            new GeneratorSettings(30, 80, 30, 6, 0.01D, 0.001D,
+//                    false, 2D),
+//            new GeneratorSettings(15, 40, 15, 5, 0.01D, 0.001D,
+//                    false, 1D),
+//            1.5D,
+//            TerrainTopBlockArray.builder().addBlock(Blocks.GRASS).addBlocks(Blocks.DIRT, 3).build(),
+//            TerrainTopBlockArray.builder().addBlocks(Blocks.DIRT, 4).build()
+//    );
+
+    private BiomeGeneratorSettings(@Nullable Biome linkedBiome,
                            GeneratorSettings upperNoiseGeneratorSettings,
                            GeneratorSettings downNoiseGeneratorSettings,
                            GeneratorSettings decoratorNoiseGeneratorSettings,
                            double applyRange,
-                           TerrainTopBlockArray blocks) {
+                           TerrainTopBlockArray surfaceBlocks,
+                           TerrainTopBlockArray underwaterBlocks) {
         this.linkedBiome = linkedBiome;
         this.upperNoiseGeneratorSettings = upperNoiseGeneratorSettings;
         this.downNoiseGeneratorSettings = downNoiseGeneratorSettings;
         this.decoratorNoiseGeneratorSettings = decoratorNoiseGeneratorSettings;
         this.applyRange = applyRange;
-        this.blocks = blocks;
-    }
+        this.surfaceBlocks = surfaceBlocks;
+        this.underwaterBlocks = underwaterBlocks;
 
-    private static BiomeGeneratorSettings getOrDefault(@Nullable BiomeGeneratorSettings settings) {
-        if (settings == null) {
-            return BiomeGeneratorSettings.PLAINS;
+        if (linkedBiome != null) {
+            settings.put(linkedBiome.getBiomeName(), this);
         } else {
-            return settings;
+            settings.put("UNDEFINED", this);
         }
     }
 
     public static BiomeGeneratorSettings getFromBiome(Biome biome) {
-        // TODO: Fix Crash Caused by: java.lang.IllegalArgumentException: No enum constant ru.aloyenz.ancientcaves.world.BiomeGeneratorSettings.FORESTHILLS
-        return getOrDefault(BiomeGeneratorSettings.valueOf(biome.getBiomeName().toUpperCase()));
+        if (settings.get(biome.getBiomeName()) == null) {
+            return UNDEFINED;
+        } else {
+            return settings.get(biome.getBiomeName());
+        }
     }
 
+    @Nullable
     private final Biome linkedBiome;
     private final GeneratorSettings upperNoiseGeneratorSettings;
     private final GeneratorSettings downNoiseGeneratorSettings;
     private final GeneratorSettings decoratorNoiseGeneratorSettings;
     private final double applyRange;
-    private final TerrainTopBlockArray blocks;
+    private final TerrainTopBlockArray surfaceBlocks;
+    private final TerrainTopBlockArray underwaterBlocks;
 
+    @Nullable
     public Biome getLinkedBiome() {
         return linkedBiome;
     }
@@ -73,7 +99,11 @@ public enum BiomeGeneratorSettings {
         return applyRange;
     }
 
-    public TerrainTopBlockArray getBlocks() {
-        return blocks;
+    public TerrainTopBlockArray getSurfaceBlocks() {
+        return surfaceBlocks;
+    }
+
+    public TerrainTopBlockArray getUnderwaterBlocks() {
+        return this.underwaterBlocks;
     }
 }

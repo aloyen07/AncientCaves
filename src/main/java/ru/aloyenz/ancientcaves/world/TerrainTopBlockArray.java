@@ -10,19 +10,41 @@ public class TerrainTopBlockArray {
 
     private final List<IBlockState> blocks;
 
-    public TerrainTopBlockArray() {
-        blocks = new ArrayList<>();
+    private TerrainTopBlockArray(List<IBlockState> blocks) {
+        this.blocks = blocks;
     }
 
-    public TerrainTopBlockArray addBlock(Block block) {
-        this.blocks.add(block.getDefaultState());
-        return this;
+    public List<IBlockState> getBlocks() {
+        return this.blocks;
     }
 
-    public TerrainTopBlockArray addBlocks(Block block, int size) {
-        for (int i = 0; i < size; i++) {
-            this.blocks.add(block.getDefaultState());
+
+    public static TerrainTopBlockArrayBuilder builder() {
+        return new TerrainTopBlockArrayBuilder();
+    }
+
+    public static class TerrainTopBlockArrayBuilder {
+
+        private final List<IBlockState> blocks;
+
+        private TerrainTopBlockArrayBuilder() {
+            this.blocks = new ArrayList<>();
         }
-        return this;
+
+        public TerrainTopBlockArrayBuilder addBlock(Block block) {
+            this.blocks.add(block.getDefaultState());
+            return this;
+        }
+
+        public TerrainTopBlockArrayBuilder addBlocks(Block block, int size) {
+            for (int i = 0; i < size; i++) {
+                this.blocks.add(block.getDefaultState());
+            }
+            return this;
+        }
+
+        public TerrainTopBlockArray build() {
+            return new TerrainTopBlockArray(this.blocks);
+        }
     }
 }

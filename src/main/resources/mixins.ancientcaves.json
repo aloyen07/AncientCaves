@@ -4,7 +4,8 @@
   "package": "ru.aloyenz.ancientcaves.mixin",
   "refmap": "mixins.ancientcaves.refmap.json",
   "mixins": [
-    "DefaultDimensionSetter"
+    "DefaultDimensionSetter",
+    "BiomeGetters"
   ],
   "client": [],
   "server": []

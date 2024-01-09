@@ -95,7 +95,7 @@ public class AncientCavesGenerator implements IChunkGenerator {
     @Override
     public Chunk generateChunk(int x, int z) {
         ChunkPrimer chunkPrimer = new ChunkPrimer();
-        biomes = world.getBiomeProvider().getBiomes(biomes, x*16, z*16, 16, 16);
+        biomes = world.getBiomeProvider().getBiomes(biomes, x*16, z*16, 16, 16, true);
 
         chunkPrimer = generateSolidStoneLayers(chunkPrimer);
         chunkPrimer = landscapeGenerator.processChunk(chunkPrimer, x, z, biomes);
@@ -107,8 +107,8 @@ public class AncientCavesGenerator implements IChunkGenerator {
 
     @Override
     public void populate(int x, int z) {
-//        populator.setWorkingWith(x, z, world);
-//        populator.plantFlowers(world);
+        populator.setWorkingWith(x, z, world);
+        populator.plantFlowers(world);
     }
 
     @Override
