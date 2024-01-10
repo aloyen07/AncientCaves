@@ -1,9 +1,22 @@
 package ru.aloyenz.ancientcaves.world;
 
+import net.minecraft.block.BlockFalling;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.init.Biomes;
 import net.minecraft.init.Blocks;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.ChunkPrimer;
+import net.minecraft.world.gen.*;
+import net.minecraft.world.gen.feature.WorldGenAbstractTree;
+import net.minecraft.world.gen.feature.WorldGenDungeons;
+import net.minecraft.world.gen.feature.WorldGenLakes;
+import net.minecraft.world.gen.structure.*;
+import net.minecraftforge.event.ForgeEventFactory;
+import net.minecraftforge.event.terraingen.DecorateBiomeEvent;
+import net.minecraftforge.event.terraingen.PopulateChunkEvent;
 import ru.aloyenz.ancientcaves.noise.PerlinNoiseGenerator;
 
 import java.util.List;
@@ -22,16 +35,54 @@ public class LandscapeGenerator {
     private final IBlockState stone = Blocks.STONE.getDefaultState();
     private final IBlockState air = Blocks.AIR.getDefaultState();
     private final IBlockState water = Blocks.WATER.getDefaultState();
+    private final IBlockState grass = Blocks.GRASS.getDefaultState();
+
+
+    private final boolean mapFeaturesEnabled = true;
+    private MapGenStronghold strongholdGenerator;
+    private MapGenVillage villageGenerator;
+    private MapGenMineshaft mineshaftGenerator;
+    private MapGenScatteredFeature scatteredFeatureGenerator;
+    private StructureOceanMonument oceanMonumentGenerator;
+    // TODO: Fix it
+    //private WoodlandMansion woodlandMansionGenerator;
+
+    private final float extraTreeChance = 0.1F;
+    private final Random treeDecoratorRandom;
+    private final Random treePosRandom;
+    private final int maxTreePlaceAttempts = 1000;
 
     public static final int baseLandscapeStart = AncientCavesGenerator.solidStoneHeight + smoothLayerSize;
     private static final int baseLandscapeEnd = 256 - AncientCavesGenerator.solidStoneHeight - smoothLayerSize;
 
-    public LandscapeGenerator(Long seed) {
+    private final Random rand;
+    private final ChunkGeneratorSettings settings;
+
+    public LandscapeGenerator(Long seed, IChunkGenerator generator) {
         Random random = new Random(seed);
 
         this.baseNoiseGenerator = new PerlinNoiseGenerator(nextLong(random, seed));
         this.minusNoiseGenerator = new PerlinNoiseGenerator(nextLong(random, seed));
         this.decoratorNoiseGenerator = new PerlinNoiseGenerator(nextLong(random, seed));
+        this.rand = new Random(nextLong(random, seed));
+        this.treeDecoratorRandom = new Random(nextLong(random, seed));
+        this.treePosRandom = new Random(nextLong(random, seed));
+
+        ChunkGeneratorSettings.Factory factory = new ChunkGeneratorSettings.Factory();
+        factory.seaLevel = 105;
+        this.settings = factory.build();
+
+        this.strongholdGenerator = new MapGenStronghold();
+        this.villageGenerator = new MapGenVillage();
+        this.mineshaftGenerator = new MapGenMineshaft();
+        this.scatteredFeatureGenerator = new MapGenScatteredFeature();
+        this.oceanMonumentGenerator = new StructureOceanMonument();
+
+        strongholdGenerator = (MapGenStronghold)net.minecraftforge.event.terraingen.TerrainGen.getModdedMapGen(strongholdGenerator, net.minecraftforge.event.terraingen.InitMapGenEvent.EventType.STRONGHOLD);
+        villageGenerator = (MapGenVillage)net.minecraftforge.event.terraingen.TerrainGen.getModdedMapGen(villageGenerator, net.minecraftforge.event.terraingen.InitMapGenEvent.EventType.VILLAGE);
+        mineshaftGenerator = (MapGenMineshaft)net.minecraftforge.event.terraingen.TerrainGen.getModdedMapGen(mineshaftGenerator, net.minecraftforge.event.terraingen.InitMapGenEvent.EventType.MINESHAFT);
+        scatteredFeatureGenerator = (MapGenScatteredFeature)net.minecraftforge.event.terraingen.TerrainGen.getModdedMapGen(scatteredFeatureGenerator, net.minecraftforge.event.terraingen.InitMapGenEvent.EventType.SCATTERED_FEATURE);
+        oceanMonumentGenerator = (StructureOceanMonument)net.minecraftforge.event.terraingen.TerrainGen.getModdedMapGen(oceanMonumentGenerator, net.minecraftforge.event.terraingen.InitMapGenEvent.EventType.OCEAN_MONUMENT);
     }
 
     private long nextLong(Random rng, long bound) { // TODO: Refactor this
@@ -56,7 +107,7 @@ public class LandscapeGenerator {
      * @param chunkX - Chunk X coordinate.
      * @param chunkZ - Chunk Z coordinate.
      */
-    public ChunkPrimer processChunk(ChunkPrimer chunkIn, int chunkX, int chunkZ, Biome[] biomes) {
+    public ChunkPrimer processChunk(ChunkPrimer chunkIn, int chunkX, int chunkZ, Biome[] biomes, World world) {
 
 //        BiomeProvider biomeProvider = world.getBiomeProvider();
 //        Biome[] biomes = biomeProvider.getBiomes(new Biome[]{}, chunkX, chunkZ, 16, 16, true);
@@ -215,26 +266,145 @@ public class LandscapeGenerator {
 
                         int diff = 0;
                         for (IBlockState block : blocks) {
-                            chunkIn.setBlockState(x, y - diff, z, block);
-                            diff += 1;
+                            if (!chunkIn.getBlockState(x, y - diff, z).equals(air)) {
+                                chunkIn.setBlockState(x, y - diff, z, block);
+                                diff += 1;
+                            } else {
+                                break;
+                            }
                         }
                     }
                 }
             }
         }
 
-//        // Adding a water
-//        for (int x = 0; x <= 15; x++) {
-//            for (int z = 0; z <= 15; z++) {
-//                for (int y = waterLevel;
-//                     y >= AncientCavesGenerator.solidStoneHeight-1; y--) {
-//                     if (chunkIn.getBlockState(x, y, z).getBlock().equals(air.getBlock())) {
-//                         chunkIn.setBlockState(x, y, z, water);
-//                     }
-//                }
-//            }
-//        }
+        // Adding a water
+        for (int x = 0; x <= 15; x++) {
+            for (int z = 0; z <= 15; z++) {
+                for (int y = waterLevel;
+                     y >= AncientCavesGenerator.solidStoneHeight-1; y--) {
+                     if (chunkIn.getBlockState(x, y, z).getBlock().equals(air.getBlock())) {
+                         chunkIn.setBlockState(x, y, z, water);
+                     }
+                }
+            }
+        }
 
         return chunkIn;
+    }
+
+
+    public void populate(int x, int z, World world, Biome[] biomes, IChunkGenerator generator) {
+
+        boolean flag = false;
+        BlockPos blockpos = new BlockPos(x*16, 0, z*16);
+        ChunkPos chunkpos = new ChunkPos(x, z);
+
+        Biome biome = biomes[0];
+
+        ForgeEventFactory.onChunkPopulate(true, generator, world, this.rand, x, z, flag);
+
+        if (this.mapFeaturesEnabled) {
+            if (this.settings.useMineShafts) {
+                this.mineshaftGenerator.generateStructure(world, this.rand, chunkpos);
+            }
+
+            if (this.settings.useVillages) {
+                flag = this.villageGenerator.generateStructure(world, this.rand, chunkpos);
+            }
+
+            if (this.settings.useStrongholds) {
+                this.strongholdGenerator.generateStructure(world, this.rand, chunkpos);
+            }
+
+            if (this.settings.useTemples) {
+                this.scatteredFeatureGenerator.generateStructure(world, this.rand, chunkpos);
+            }
+
+            if (this.settings.useMonuments) {
+                this.oceanMonumentGenerator.generateStructure(world, this.rand, chunkpos);
+            }
+
+//            if (this.settings.useMansions) {
+//                this.woodlandMansionGenerator.generateStructure(world, this.rand, chunkpos);
+//            }
+        }
+
+        BlockFalling.fallInstantly = true;
+
+        biomes[0].decorate(world, rand, new BlockPos(x * 16, 0, z * 16));
+
+        if (this.settings.useDungeons) {
+            if (net.minecraftforge.event.terraingen.TerrainGen.populate(generator, world, this.rand, x, z, flag,
+                    PopulateChunkEvent.Populate.EventType.DUNGEON)) {
+                for (int i = 0; i < this.settings.dungeonChance; i++) {
+                    int xt = this.rand.nextInt(16) + 8;
+                    int yt = this.rand.nextInt(256);
+                    int zt = this.rand.nextInt(16) + 8;
+                    (new WorldGenDungeons()).generate(world, this.rand, blockpos.add(xt, yt, zt));
+                }
+            }
+        }
+
+        if (biome != Biomes.DESERT && biome != Biomes.DESERT_HILLS && this.settings.useWaterLakes && !flag &&
+                this.rand.nextInt(this.settings.waterLakeChance) == 0) {
+            if (net.minecraftforge.event.terraingen.TerrainGen.populate(generator, world, this.rand, x, z, flag,
+                    PopulateChunkEvent.Populate.EventType.LAKE)) {
+                int xt = this.rand.nextInt(16) + 8;
+                int yt = this.rand.nextInt(256);
+                int zt = this.rand.nextInt(16) + 8;
+                (new WorldGenLakes(Blocks.WATER)).generate(world, this.rand, blockpos.add(xt, yt, zt));
+            }
+        }
+
+        if (!flag && this.rand.nextInt(this.settings.lavaLakeChance / 10) == 0 && this.settings.useLavaLakes) {
+            if (net.minecraftforge.event.terraingen.TerrainGen.populate(generator, world, this.rand, x, z, flag,
+                    PopulateChunkEvent.Populate.EventType.LAVA)) {
+                int xt = this.rand.nextInt(16) + 8;
+                int yt = this.rand.nextInt(this.rand.nextInt(248) + 8);
+                int zt = this.rand.nextInt(16) + 8;
+
+                if (yt < world.getSeaLevel() || this.rand.nextInt(this.settings.lavaLakeChance / 8) == 0) {
+                    (new WorldGenLakes(Blocks.LAVA)).generate(world, this.rand, blockpos.add(xt, yt, zt));
+                }
+            }
+        }
+
+        int trees = biome.decorator.treesPerChunk*2;
+
+        if (treeDecoratorRandom.nextFloat() < this.extraTreeChance) {
+            trees++;
+        }
+
+        if(net.minecraftforge.event.terraingen.TerrainGen.decorate(world, treeDecoratorRandom, chunkpos,
+                DecorateBiomeEvent.Decorate.EventType.TREE)) {
+            for (int tree = 0; tree < trees; tree++) {
+                WorldGenAbstractTree worldgenabstracttree = biome.getRandomTreeFeature(treeDecoratorRandom);
+                worldgenabstracttree.setDecorationDefaults();
+
+                for (int i = 0; i <= maxTreePlaceAttempts; i++) {
+                    int xr = treePosRandom.nextInt(15);
+                    int yr = treePosRandom.nextInt(baseLandscapeEnd - waterLevel + 1) + baseLandscapeEnd;
+                    int zr = treePosRandom.nextInt(15);
+                    boolean generated = false;
+
+                    for (int yp = yr; yp >= waterLevel; yp--) {
+                        BlockPos pos = new BlockPos(xr + (chunkpos.x * 16), yp, zr + (chunkpos.z * 16));
+                        IBlockState blockState = world.getBlockState(pos);
+                        if (blockState.equals(grass)) {
+                            worldgenabstracttree.generateSaplings(world, treeDecoratorRandom, pos);
+                            generated = true;
+                            break;
+                        }
+                    }
+
+                    if (generated) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        BlockFalling.fallInstantly = false;
     }
 }

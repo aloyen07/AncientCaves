@@ -11,20 +11,20 @@ public class BiomeGeneratorSettings {
 
     private static final HashMap<String, BiomeGeneratorSettings> settings = new HashMap<>();
 
-    public static final BiomeGeneratorSettings UNDEFINED = new BiomeGeneratorSettings(Biomes.EXTREME_HILLS,
-            new GeneratorSettings(70, 150, 90, 14, 0.01D, 0.001D,
+    public static final BiomeGeneratorSettings UNDEFINED = new BiomeGeneratorSettings(Biomes.PLAINS,
+            new GeneratorSettings(270, 40, 270, 14, 0.01D, 0.001D,
                     false, 4D), // Upper
 
-            new GeneratorSettings(30, 140, 50, 6, 0.01D, 0.001D,
-                    false, 2D), // Lower
+            new GeneratorSettings(130, 40, 130, 6, 0.01D, 0.001D,
+                    false, -4D), // Lower
 
-            new GeneratorSettings(15, 40, 15, 5, 0.01D, 0.001D,
-                    false, 0D), // Decorator
+            new GeneratorSettings(130, 40, 130, 5, 0.01D, 0.001D,
+                    false, -4D), // Decorator
 
             1D, // applyRange
 
             TerrainTopBlockArray.builder().addBlock(Blocks.GRASS).addBlocks(Blocks.DIRT, 3).build(),
-            TerrainTopBlockArray.builder().addBlocks(Blocks.GRAVEL,2).addBlocks(Blocks.DIRT,4).build()
+            TerrainTopBlockArray.builder().addBlocks(Blocks.DIRT, 4).build()
     );
 
 //    public static final BiomeGeneratorSettings PLAINS = new BiomeGeneratorSettings(Biomes.PLAINS,

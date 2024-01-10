@@ -32,7 +32,6 @@ public class AncientCavesGenerator implements IChunkGenerator {
     private final IBlockState stone = Blocks.STONE.getDefaultState();
 
     private final LandscapeGenerator landscapeGenerator;
-    private final AncientCavesPopulator populator;
 
     private Biome[] biomes = new Biome[]{};
 
@@ -41,8 +40,7 @@ public class AncientCavesGenerator implements IChunkGenerator {
     public AncientCavesGenerator(World worldIn) {
         this.world = worldIn;
         this.random = new Random(worldIn.getSeed());
-        this.landscapeGenerator = new LandscapeGenerator(worldIn.getSeed());
-        this.populator = new AncientCavesPopulator(worldIn.getSeed());
+        this.landscapeGenerator = new LandscapeGenerator(worldIn.getSeed(), this);
         DimensionManager.setWorld(912, (WorldServer) worldIn,
                 Objects.requireNonNull(worldIn.getMinecraftServer()));
     }
@@ -98,17 +96,17 @@ public class AncientCavesGenerator implements IChunkGenerator {
         biomes = world.getBiomeProvider().getBiomes(biomes, x*16, z*16, 16, 16, true);
 
         chunkPrimer = generateSolidStoneLayers(chunkPrimer);
-        chunkPrimer = landscapeGenerator.processChunk(chunkPrimer, x, z, biomes);
+        chunkPrimer = landscapeGenerator.processChunk(chunkPrimer, x, z, biomes, world);
         chunkPrimer = generateBedrock(chunkPrimer, random);
 
-        Chunk chunk = new Chunk(world, chunkPrimer, x, z);
-        return chunk;
+        return new Chunk(world, chunkPrimer, x, z);
     }
 
     @Override
     public void populate(int x, int z) {
-        populator.setWorkingWith(x, z, world);
-        populator.plantFlowers(world);
+       landscapeGenerator.populate(x, z, world,
+               world.getBiomeProvider().getBiomes(biomes, x*16, z*16, 16, 16, true),
+               this);
     }
 
     @Override
